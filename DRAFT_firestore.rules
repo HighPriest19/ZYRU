@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'adamsolagunju17@gmail.com' && isEmailVerified()
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 255 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             (!('loyaltyPoints' in data) || data.loyaltyPoints is number) &&
+             (!('wishlist' in data) || data.wishlist is list) &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'basePrice', 'type']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.basePrice is number && data.basePrice >= 0 &&
+             data.type in ['T-Shirt', 'Hoodie', 'Cap', 'Accessory'] &&
+             (!('category' in data) || data.category in ['Streetwear', 'Minimal', 'Luxury', 'Athleisure']) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 2000));
+    }
+
+    function isValidDesign(data) {
+      return data.keys().hasAll(['id', 'userId', 'baseProductId', 'config']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.baseProductId is string &&
+             data.config is map;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'items', 'totalPrice', 'status']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.items is list && data.items.size() > 0 &&
+             data.totalPrice is number && data.totalPrice >= 0 &&
+             data.status in ['Received', 'Approved', 'Printing', 'Shipped', 'Delivered'];
+    }
+
+    function isValidVote(data) {
+      return data.keys().hasAll(['userId', 'pollId', 'optionId']) &&
+             data.userId == request.auth.uid &&
+             data.pollId is string &&
+             data.optionId is string;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'wishlist', 'loyaltyPoints'])
+      );
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidProduct(incoming());
+    }
+
+    match /designs/{designId} {
+      allow get: if isSignedIn() && (existing().isPublic == true || existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.isPublic == true || resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidDesign(incoming()) && exists(/databases/$(database)/documents/products/$(incoming().baseProductId));
+      allow update: if isOwner(existing().userId) && isValidDesign(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['config', 'previewUrl', 'isPublic'])
+      );
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow get: if isOwner(existing().userId) || isAdmin();
+      allow list: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      allow update: if (isOwner(existing().userId) || isAdmin()) && (
+        // User can only update address if not shipped
+        (isOwner(existing().userId) && existing().status == 'Received' && incoming().diff(existing()).affectedKeys().hasOnly(['shippingAddress'])) ||
+        // Admin can update status
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
+    }
+
+    match /polls/{pollId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /votes/{voteId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidVote(incoming()) && !exists(/databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid));
+        // Using request.auth.uid as voteId to enforce one vote per user
+      }
+    }
+  }
+}

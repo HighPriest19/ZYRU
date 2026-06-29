@@ -1,0 +1,6 @@
+{
+  "name": "ZYRU™ — Wear Your Vision",
+  "description": "A modern fashion platform for custom apparel, official streetwear drops, and community-driven design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

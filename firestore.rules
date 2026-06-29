@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'adamsolagunju17@gmail.com' && isEmailVerified()
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'basePrice', 'type']) &&
+             data.name is string && data.name.size() <= 200 &&
+             data.basePrice is number && data.basePrice >= 0;
+    }
+
+    function isValidDesign(data) {
+      return data.keys().hasAll(['id', 'userId', 'baseProductId', 'config']) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'items', 'totalPrice', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.totalPrice is number && data.totalPrice >= 0;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['id', 'userId', 'productId', 'rating']) &&
+             data.userId == request.auth.uid &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'wishlist', 'loyaltyPoints', 'birthday', 'savedDesigns'])
+      );
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidProduct(incoming());
+    }
+
+    match /designs/{designId} {
+      allow get: if isSignedIn() && (existing().isPublic == true || existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.isPublic == true || resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidDesign(incoming()) && exists(/databases/$(database)/documents/products/$(incoming().baseProductId));
+      allow update: if isOwner(existing().userId) && isValidDesign(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['config', 'previewUrl', 'isPublic', 'name'])
+      );
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow get: if isOwner(existing().userId) || isAdmin();
+      allow list: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      allow update: if isAdmin() || (isOwner(existing().userId) && existing().status == 'Received' && incoming().diff(existing()).affectedKeys().hasOnly(['shippingAddress']));
+    }
+
+    match /polls/{pollId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /votes/{voteId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && voteId == request.auth.uid;
+      }
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming());
+      allow update, delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    match /challenges/{challengeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /loyalty_transactions/{transactionId} {
+      allow get: if isOwner(existing().userId) || isAdmin();
+      allow list: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAdmin(); // Usually server-side
+    }
+  }
+}

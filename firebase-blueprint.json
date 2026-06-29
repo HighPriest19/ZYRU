@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user account information and loyalty points.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "loyaltyPoints": { "type": "number" },
+        "wishlist": { "type": "array", "items": { "type": "string" } },
+        "savedDesigns": { "type": "array", "items": { "type": "string" } },
+        "birthday": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Represents an official ZYRU item or a base product for customization.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "type": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "colors": { "type": "array", "items": { "type": "string" } },
+        "sizes": { "type": "array", "items": { "type": "string" } },
+        "isOfficial": { "type": "boolean" },
+        "isPublished": { "type": "boolean" },
+        "stock": { "type": "number" },
+        "printingMethods": { "type": "array", "items": { "type": "string" } },
+        "materials": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "basePrice", "type"]
+    },
+    "Design": {
+      "title": "Custom Design",
+      "description": "A user-created design based on a product template.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "baseProductId": { "type": "string" },
+        "config": { "type": "object" },
+        "previewUrl": { "type": "string" },
+        "isPublic": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "baseProductId", "config"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents a purchase transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string" },
+        "shippingAddress": { "type": "object" },
+        "trackingNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "items", "totalPrice", "status"]
+    },
+    "Poll": {
+      "title": "Community Poll",
+      "description": "A poll for the community lab to vote on future designs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "options": { "type": "array" },
+        "isActive": { "type": "boolean" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "options", "isActive"]
+    },
+    "Review": {
+      "title": "Product Review",
+      "description": "A review submitted by a customer for a product.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "fitFeedback": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "productId", "rating"]
+    },
+    "Challenge": {
+      "title": "Design Challenge",
+      "description": "Weekly or monthly design competitions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "reward": { "type": "string" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" },
+        "thumbnail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "reward", "isActive"]
+    },
+    "LoyaltyTransaction": {
+      "title": "Loyalty Transaction",
+      "description": "A log of points earned or spent.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "reason"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Official and base products."
+    },
+    "designs/{designId}": {
+      "schema": "Design",
+      "description": "User custom designs."
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders."
+    },
+    "polls/{pollId}": {
+      "schema": "Poll",
+      "description": "Community lab polls."
+    },
+    "reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Product reviews."
+    },
+    "challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "Design challenges."
+    },
+    "loyalty_transactions/{transactionId}": {
+      "schema": "LoyaltyTransaction",
+      "description": "Points logs."
+    }
+  }
+}
