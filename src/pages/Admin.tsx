@@ -77,8 +77,14 @@ export function Admin() {
     isActive: true
   });
 
+  const ADMIN_EMAILS = [
+    'adamsolagunju17@gmail.com',
+    'Yukimurachris22@gmail.com',
+    'hinckleyolagunju@gmail.com'
+  ];
+
   useEffect(() => {
-    if (!user || user.email !== 'adamsolagunju17@gmail.com') {
+    if (!user || !user.email || !ADMIN_EMAILS.includes(user.email)) {
       navigate('/');
       return;
     }

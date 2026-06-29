@@ -8,8 +8,53 @@ import { requireAuth, AuthRequest } from "./src/middleware/auth.ts";
 import { GoogleGenAI } from "@google/genai";
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
+import { adminAuth } from "./src/lib/firebase-admin.ts";
 
 dotenv.config();
+
+const ADMIN_EMAILS = [
+  'adamsolagunju17@gmail.com',
+  'Yukimurachris22@gmail.com',
+  'hinckleyolagunju@gmail.com'
+];
+
+async function seedAdminUsers() {
+  console.log("Seeding administrative users...");
+  const adminsToSeed = [
+    { email: 'Yukimurachris22@gmail.com', password: 'admin@2026', displayName: 'Yukimura Chris' },
+    { email: 'hinckleyolagunju@gmail.com', password: 'admin@2026', displayName: 'Hinckley Olagunju' }
+  ];
+
+  for (const admin of adminsToSeed) {
+    try {
+      const existingUser = await adminAuth.getUserByEmail(admin.email);
+      console.log(`Admin user ${admin.email} exists. Updating password to ensure it is ${admin.password}.`);
+      await adminAuth.updateUser(existingUser.uid, {
+        password: admin.password,
+        displayName: admin.displayName,
+        emailVerified: true
+      });
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found' || error.message?.includes('user-not-found')) {
+        try {
+          const userRecord = await adminAuth.createUser({
+            email: admin.email,
+            password: admin.password,
+            displayName: admin.displayName,
+            emailVerified: true
+          });
+          console.log(`Successfully created admin user: ${userRecord.email}`);
+        } catch (createError) {
+          console.error(`Failed to create admin user ${admin.email}:`, createError);
+        }
+      } else {
+        console.error(`Error checking admin user ${admin.email}:`, error);
+      }
+    }
+  }
+}
+
+seedAdminUsers().catch(err => console.error("Admin seeding failed:", err));
 
 // Configure Cloudinary
 cloudinary.config({
@@ -234,7 +279,7 @@ app.post("/api/site-config", requireAuth, checkSql, async (req: AuthRequest, res
   try {
     // Check if admin (simplified for now, should check isAdmin in SQL users table)
     const user = await db.select().from(users).where(eq(users.id, req.user!.uid)).limit(1);
-    if (!user[0]?.isAdmin && req.user!.email !== 'adamsolagunju17@gmail.com') {
+    if (!user[0]?.isAdmin && !ADMIN_EMAILS.includes(req.user!.email || '')) {
       return res.status(403).json({ error: "Forbidden: Admin access required" });
     }
 
@@ -266,7 +311,7 @@ app.get("/api/products", checkSql, async (req, res) => {
 
 app.post("/api/products", requireAuth, checkSql, async (req: AuthRequest, res) => {
   try {
-    if (req.user!.email !== 'adamsolagunju17@gmail.com') {
+    if (!ADMIN_EMAILS.includes(req.user!.email || '')) {
       return res.status(403).json({ error: "Forbidden" });
     }
     const { id, name, description, price, category, stock, metadata } = req.body;

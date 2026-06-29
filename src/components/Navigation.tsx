@@ -18,7 +18,13 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isAdmin = user?.email === 'adamsolagunju17@gmail.com';
+  const ADMIN_EMAILS = [
+    'adamsolagunju17@gmail.com',
+    'Yukimurachris22@gmail.com',
+    'hinckleyolagunju@gmail.com'
+  ];
+
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   const handleLogout = async () => {
     await signOut(auth);
