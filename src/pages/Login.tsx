@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, loginWithGoogle } from '../lib/firebase';
 
 export function Login() {
   const navigate = useNavigate();
@@ -112,6 +112,31 @@ export function Login() {
               {loading ? 'Verifying...' : 'Access Account'} <ArrowRight size={14} />
             </button>
           </form>
+
+            <div className="mt-8 flex items-center gap-4">
+              <div className="flex-grow border-t border-editorial-text/20"></div>
+              <span className="text-[10px] font-bold uppercase opacity-40">Or</span>
+              <div className="flex-grow border-t border-editorial-text/20"></div>
+            </div>
+
+            <button 
+              onClick={async () => {
+                setError(null);
+                setLoading(true);
+                try {
+                  await loginWithGoogle();
+                  navigate('/account');
+                } catch (err: any) {
+                  setError(err.message || 'Failed to sign in with Google.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full mt-8 border border-editorial-text text-editorial-text py-6 text-xs font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-editorial-text hover:text-white transition-all disabled:opacity-50"
+            >
+              Access with Google
+            </button>
 
           <p className="mt-12 text-center text-[11px] uppercase tracking-[0.2em] opacity-40">
             New to ZYRU™? <Link to="/signup" className="text-editorial-text font-bold underline ml-2">Register Vision</Link>
