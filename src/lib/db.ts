@@ -260,6 +260,60 @@ export async function deleteDiscount(id: string) {
   return deleteDoc(ref);
 }
 
+// User Profile Admin helpers
+export async function getAllUsers() {
+  return getCollection<UserProfile>('users', [orderBy('joinedAt', 'desc')]);
+}
+
+// Reviews & Moderation
+export async function getAllReviews() {
+  return getCollection<any>('reviews', [orderBy('createdAt', 'desc')]);
+}
+
+export async function getReviews(productId?: string) {
+  if (productId) {
+    return getCollection<any>('reviews', [where('productId', '==', productId), orderBy('createdAt', 'desc')]);
+  }
+  return getAllReviews();
+}
+
+export async function createReview(reviewData: any) {
+  const ref = collection(db, 'reviews');
+  return addDoc(ref, {
+    ...reviewData,
+    createdAt: serverTimestamp()
+  });
+}
+
+export async function deleteReview(id: string) {
+  const ref = doc(db, 'reviews', id);
+  return deleteDoc(ref);
+}
+
+// Community Campaign Ending / Helpers
+export async function getAllPolls() {
+  return getCollection<Poll>('polls', [orderBy('createdAt', 'desc')]);
+}
+
+export async function getAllChallenges() {
+  return getCollection<Challenge>('challenges', [orderBy('createdAt', 'desc')]);
+}
+
+export async function endPoll(pollId: string) {
+  const ref = doc(db, 'polls', pollId);
+  return updateDoc(ref, { isActive: false });
+}
+
+export async function endChallenge(challengeId: string) {
+  const ref = doc(db, 'challenges', challengeId);
+  return updateDoc(ref, { isActive: false });
+}
+
+export async function toggleProductPublish(productId: string, isPublished: boolean) {
+  const ref = doc(db, 'products', productId);
+  return updateDoc(ref, { isPublished });
+}
+
 export async function searchContent(searchTerm: string) {
   const term = searchTerm.toLowerCase();
   

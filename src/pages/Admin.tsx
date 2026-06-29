@@ -4,7 +4,7 @@ import {
   Package, ShoppingCart, Users, PieChart, 
   Plus, Search, Edit2, Trash2, CheckCircle2, 
   Clock, Filter, BarChart2, MessageSquare, Tag,
-  LayoutDashboard, ChevronRight, X, FileText, Gift
+  LayoutDashboard, ChevronRight, X, FileText, Gift, Eye, EyeOff, Award
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -21,9 +21,18 @@ import {
   deleteBlogPost,
   getDiscounts,
   createDiscount,
-  deleteDiscount
+  deleteDiscount,
+  getAllUsers,
+  getAllReviews,
+  deleteReview,
+  getAllPolls,
+  getAllChallenges,
+  endPoll,
+  endChallenge,
+  createChallenge,
+  toggleProductPublish
 } from '../lib/db';
-import { Product, Order, Poll, BlogPost, Discount, ProductCategory, ProductType } from '../types';
+import { Product, Order, Poll, BlogPost, Discount, ProductCategory, ProductType, Challenge, UserProfile } from '../types';
 import { Skeleton, OrderRowSkeleton } from '../components/Skeleton';
 
 type AdminTab = 'overview' | 'products' | 'orders' | 'blog' | 'discounts' | 'community' | 'users' | 'reviews' | 'config';
@@ -42,9 +51,17 @@ export function Admin() {
   const [siteConfig, setSiteConfig] = useState<any[]>([]);
   const [isSqlActive, setIsSqlActive] = useState(true);
   
+  // New Moderation States
+  const [usersList, setUsersList] = useState<UserProfile[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isAddingBlogPost, setIsAddingBlogPost] = useState(false);
   const [isAddingDiscount, setIsAddingDiscount] = useState(false);
+  const [isAddingPoll, setIsAddingPoll] = useState(false);
+  const [isAddingChallenge, setIsAddingChallenge] = useState(false);
 
   // Form States
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -77,6 +94,24 @@ export function Admin() {
     isActive: true
   });
 
+  const [newPoll, setNewPoll] = useState<Partial<Poll>>({
+    title: '',
+    description: '',
+    options: [
+      { id: '1', label: '', votes: 0 },
+      { id: '2', label: '', votes: 0 }
+    ],
+    isActive: true
+  });
+
+  const [newChallenge, setNewChallenge] = useState<Partial<Challenge>>({
+    title: '',
+    description: '',
+    reward: '',
+    isActive: true,
+    thumbnail: ''
+  });
+
   const ADMIN_EMAILS = [
     'adamsolagunju17@gmail.com',
     'Yukimurachris22@gmail.com',
@@ -91,11 +126,15 @@ export function Admin() {
 
     async function loadData() {
       try {
-        const [pData, oData, bData, dData, cData] = await Promise.all([
+        const [pData, oData, bData, dData, uData, rData, poData, chData, cData] = await Promise.all([
           getProducts(false),
           getAllOrders(),
           getBlogPosts(false),
           getDiscounts(),
+          getAllUsers(),
+          getAllReviews(),
+          getAllPolls(),
+          getAllChallenges(),
           fetch('/api/site-config').then(async res => {
             if (res.status === 503) {
               setIsSqlActive(false);
@@ -108,6 +147,10 @@ export function Admin() {
         setOrders(oData);
         setBlogPosts(bData);
         setDiscounts(dData);
+        setUsersList(uData);
+        setReviews(rData);
+        setPolls(poData);
+        setChallenges(chData);
         setSiteConfig(cData);
       } catch (err) {
         console.error('Admin data load failed:', err);
@@ -187,6 +230,120 @@ export function Admin() {
       setOrders(updated);
     } catch (err) {
       alert('Failed to update status');
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await deleteProduct(id);
+      const updated = await getProducts(false);
+      setProducts(updated);
+    } catch (err) {
+      alert('Failed to delete product');
+    }
+  };
+
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    try {
+      await toggleProductPublish(id, !currentStatus);
+      const updated = await getProducts(false);
+      setProducts(updated);
+    } catch (err) {
+      alert('Failed to update product status');
+    }
+  };
+
+  const handleCreatePoll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const optionsWithVotes = (newPoll.options || []).map((opt, idx) => ({
+        id: (idx + 1).toString(),
+        label: opt.label,
+        votes: 0,
+        image: opt.image || ''
+      }));
+
+      await createPoll({
+        title: newPoll.title || '',
+        description: newPoll.description || '',
+        options: optionsWithVotes,
+        isActive: true,
+        endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      setIsAddingPoll(false);
+      setNewPoll({
+        title: '',
+        description: '',
+        options: [
+          { id: '1', label: '', votes: 0 },
+          { id: '2', label: '', votes: 0 }
+        ],
+        isActive: true
+      });
+      const updated = await getAllPolls();
+      setPolls(updated);
+    } catch (err) {
+      alert('Failed to create community poll');
+    }
+  };
+
+  const handleCreateChallenge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createChallenge({
+        title: newChallenge.title || '',
+        description: newChallenge.description || '',
+        reward: newChallenge.reward || '',
+        thumbnail: newChallenge.thumbnail || '',
+        isActive: true,
+        endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      setIsAddingChallenge(false);
+      setNewChallenge({
+        title: '',
+        description: '',
+        reward: '',
+        isActive: true,
+        thumbnail: ''
+      });
+      const updated = await getAllChallenges();
+      setChallenges(updated);
+    } catch (err) {
+      alert('Failed to create challenge');
+    }
+  };
+
+  const handleEndPoll = async (id: string) => {
+    try {
+      await endPoll(id);
+      const updated = await getAllPolls();
+      setPolls(updated);
+    } catch (err) {
+      alert('Failed to end poll');
+    }
+  };
+
+  const handleEndChallenge = async (id: string) => {
+    try {
+      await endChallenge(id);
+      const updated = await getAllChallenges();
+      setChallenges(updated);
+    } catch (err) {
+      alert('Failed to end challenge');
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete/reject this review?')) return;
+    try {
+      await deleteReview(id);
+      const updated = await getAllReviews();
+      setReviews(updated);
+    } catch (err) {
+      alert('Failed to delete review');
     }
   };
 
@@ -375,8 +532,20 @@ export function Admin() {
                         <span className="text-[11px] font-bold opacity-10 uppercase tracking-[0.4em] italic">Awaiting Visual</span>
                       )}
                       <div className="absolute inset-0 bg-editorial-text/40 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-4">
-                        <button className="p-4 bg-white shadow-xl hover:bg-gray-100 transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => deleteProduct(product.id)} className="p-4 bg-white shadow-xl hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={16} /></button>
+                        <button 
+                          onClick={() => handleTogglePublish(product.id, !!product.isPublished)} 
+                          className="p-4 bg-white shadow-xl hover:bg-gray-100 transition-colors flex items-center justify-center"
+                          title={product.isPublished ? "Unpublish Draft" : "Publish Live"}
+                        >
+                          {product.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteProduct(product.id)} 
+                          className="p-4 bg-white shadow-xl hover:bg-red-50 text-red-500 transition-colors"
+                          title="Delete Product"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                       {!product.isPublished && (
                         <div className="absolute top-6 left-6 bg-black text-white text-[9px] font-bold px-3 py-1 uppercase tracking-[0.3em]">Draft_Mode</div>
@@ -595,7 +764,210 @@ export function Admin() {
                 </table>
               </div>
             </motion.div>
-          )}          {activeTab === 'config' && (
+          )}
+
+          {activeTab === 'community' && (
+            <motion.div key="community" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+              <header className="flex justify-between items-end">
+                <div>
+                  <span className="label-text opacity-40 uppercase tracking-[0.3em] font-bold text-[10px]">Community Governance</span>
+                  <h1 className="text-5xl font-serif mt-4 italic tracking-tighter">Campaigns & Labs</h1>
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setIsAddingPoll(true)}
+                    className="px-8 py-4 bg-editorial-text text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gray-800 transition-all flex items-center gap-2"
+                  >
+                    <Plus size={14} /> New Poll
+                  </button>
+                  <button 
+                    onClick={() => setIsAddingChallenge(true)}
+                    className="px-8 py-4 border border-editorial-text text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-editorial-accent transition-all flex items-center gap-2"
+                  >
+                    <Plus size={14} /> New Challenge
+                  </button>
+                </div>
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                {/* Polls management */}
+                <div className="space-y-6">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.3em] border-b border-editorial-text/10 pb-4">Voting Polls</h3>
+                  <div className="space-y-4">
+                    {polls.map(p => (
+                      <div key={p.id} className="p-6 bg-white border border-editorial-text/5 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className={`text-[9px] font-bold uppercase px-3 py-1 tracking-widest ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {p.isActive ? 'Active' : 'Closed'}
+                          </span>
+                          <span className="text-[10px] opacity-40 font-mono">Ends: {new Date(p.endsAt).toLocaleDateString()}</span>
+                        </div>
+                        <h4 className="text-lg font-serif italic">{p.title}</h4>
+                        <p className="text-[11px] opacity-60 leading-relaxed font-light">{p.description}</p>
+                        
+                        <div className="space-y-2 border-t border-editorial-text/5 pt-4">
+                          {p.options.map(o => (
+                            <div key={o.id} className="flex justify-between text-[11px] font-mono">
+                              <span className="opacity-60">{o.label}</span>
+                              <span className="font-bold">{o.votes} Votes</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {p.isActive && (
+                          <button 
+                            onClick={() => handleEndPoll(p.id)}
+                            className="w-full mt-4 py-3 border border-red-200 hover:border-red-500 hover:bg-red-50 text-red-600 text-[9px] font-bold uppercase tracking-widest transition-all"
+                          >
+                            End Voting Campaign
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {polls.length === 0 && (
+                      <div className="py-12 text-center border border-dashed border-editorial-text/10">
+                        <p className="text-[11px] uppercase tracking-widest opacity-40 italic">No active community voting.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Challenges management */}
+                <div className="space-y-6">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.3em] border-b border-editorial-text/10 pb-4">Monthly Challenges</h3>
+                  <div className="space-y-4">
+                    {challenges.map(c => (
+                      <div key={c.id} className="p-6 bg-white border border-editorial-text/5 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className={`text-[9px] font-bold uppercase px-3 py-1 tracking-widest ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {c.isActive ? 'Active' : 'Ended'}
+                          </span>
+                          <span className="text-[10px] opacity-40 font-mono">Reward: {c.reward}</span>
+                        </div>
+                        <h4 className="text-lg font-serif italic">{c.title}</h4>
+                        <p className="text-[11px] opacity-60 leading-relaxed font-light">{c.description}</p>
+
+                        {c.isActive && (
+                          <button 
+                            onClick={() => handleEndChallenge(c.id)}
+                            className="w-full mt-4 py-3 border border-red-200 hover:border-red-500 hover:bg-red-50 text-red-600 text-[9px] font-bold uppercase tracking-widest transition-all"
+                          >
+                            End Challenge
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {challenges.length === 0 && (
+                      <div className="py-12 text-center border border-dashed border-editorial-text/10">
+                        <p className="text-[11px] uppercase tracking-widest opacity-40 italic">No challenges initialized.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'users' && (
+            <motion.div key="users" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+              <header className="flex justify-between items-end">
+                <div>
+                  <span className="label-text opacity-40 uppercase tracking-[0.3em] font-bold text-[10px]">Identity Registry</span>
+                  <h1 className="text-5xl font-serif mt-4 italic tracking-tighter">Customer Accounts</h1>
+                </div>
+              </header>
+
+              <div className="bg-white border border-editorial-text/10 overflow-x-auto shadow-sm">
+                <table className="w-full text-left font-sans">
+                  <thead>
+                    <tr className="border-b border-editorial-text/10 bg-editorial-accent/20">
+                      <th className="p-8 text-[11px] font-bold uppercase tracking-widest opacity-40">User Identity</th>
+                      <th className="p-8 text-[11px] font-bold uppercase tracking-widest opacity-40">Email Protocol</th>
+                      <th className="p-8 text-[11px] font-bold uppercase tracking-widest opacity-40">Loyalty Balance</th>
+                      <th className="p-8 text-[11px] font-bold uppercase tracking-widest opacity-40">Date Registered</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-editorial-text/5">
+                    {usersList.map(u => (
+                      <tr key={u.uid} className="hover:bg-editorial-accent/5 transition-colors">
+                        <td className="p-8 font-serif italic text-lg">{u.displayName || 'Unidentified Civilian'}</td>
+                        <td className="p-8 font-mono text-xs">{u.email}</td>
+                        <td className="p-8">
+                          <span className="font-mono font-bold text-[12px] bg-editorial-accent px-4 py-2">{u.loyaltyPoints || 0} PTS</span>
+                        </td>
+                        <td className="p-8 text-[10px] font-mono opacity-50">
+                          {u.joinedAt?.toDate ? new Date(u.joinedAt.toDate()).toLocaleDateString() : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                    {usersList.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-48 text-center">
+                          <p className="text-[11px] uppercase tracking-widest opacity-40 italic">No customer accounts registered.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+              <header className="flex justify-between items-end">
+                <div>
+                  <span className="label-text opacity-40 uppercase tracking-[0.3em] font-bold text-[10px]">Reputational Ledger</span>
+                  <h1 className="text-5xl font-serif mt-4 italic tracking-tighter">Reviews & Comments</h1>
+                </div>
+              </header>
+
+              <div className="grid grid-cols-1 gap-6">
+                {reviews.map(r => (
+                  <div key={r.id} className="p-8 bg-white border border-editorial-text/5 shadow-sm relative group flex justify-between items-start">
+                    <div className="space-y-4 flex-grow max-w-4xl">
+                      <div className="flex items-center gap-4">
+                        <span className="text-[10px] font-bold uppercase px-3 py-1 bg-yellow-100 text-yellow-800 tracking-widest font-mono">
+                          ★ {r.rating} / 5
+                        </span>
+                        {r.isVerified && (
+                          <span className="text-[9px] font-bold uppercase px-3 py-1 bg-green-100 text-green-800 tracking-widest">
+                            Verified Buyer
+                          </span>
+                        )}
+                        <span className="text-[10px] opacity-40 font-mono">
+                          UID: {r.userId?.slice(0, 8)}...
+                        </span>
+                      </div>
+                      <p className="text-lg font-light italic leading-relaxed text-editorial-text/80">"{r.comment}"</p>
+                      <div className="flex items-center gap-4 text-[10px] opacity-40">
+                        <span className="font-mono">Product: {r.productId}</span>
+                        <span>•</span>
+                        <span>Fit: {r.fitFeedback || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <button 
+                        onClick={() => handleDeleteReview(r.id)} 
+                        className="p-3 text-red-500 hover:bg-red-50 rounded-none transition-all"
+                        title="Delete Review"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {reviews.length === 0 && (
+                  <div className="py-24 text-center border border-dashed border-editorial-text/10 bg-editorial-accent/20">
+                    <p className="text-xl font-serif italic opacity-40 mb-4">No reviews yet.</p>
+                    <p className="text-[10px] uppercase tracking-[0.4em] font-bold opacity-20">Awaiting user feedback transmissions</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'config' && (
             <motion.div key="config" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
                <header className="flex justify-between items-end">
                 <div>
@@ -797,6 +1169,111 @@ export function Admin() {
                   </div>
                 </div>
                 <button type="submit" className="w-full bg-editorial-text text-white py-8 text-[11px] font-bold uppercase tracking-[0.5em] hover:bg-gray-800 transition-all shadow-2xl">Authorize Protocol</button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isAddingPoll && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-editorial-text/95 backdrop-blur-sm" onClick={() => setIsAddingPoll(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-2xl bg-white p-16 overflow-y-auto max-h-[90vh] custom-scrollbar shadow-2xl">
+              <div className="flex justify-between items-start mb-16">
+                <div>
+                  <span className="text-[10px] uppercase tracking-[0.5em] font-bold opacity-30">Governance_Encoder</span>
+                  <h2 className="text-5xl font-serif mt-4 italic tracking-tighter">New Voting Campaign</h2>
+                </div>
+                <button onClick={() => setIsAddingPoll(false)} className="p-3 hover:bg-editorial-accent transition-colors"><X size={24} /></button>
+              </div>
+              <form onSubmit={handleCreatePoll} className="space-y-12">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Campaign Title</label>
+                  <input required type="text" value={newPoll.title} onChange={e => setNewPoll({...newPoll, title: e.target.value})} className="w-full bg-transparent border-b border-editorial-text/20 py-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-editorial-text" placeholder="Drop #005 Hoodies Draft" />
+                </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Narrative (Description)</label>
+                  <textarea required value={newPoll.description} onChange={e => setNewPoll({...newPoll, description: e.target.value})} className="w-full h-32 bg-editorial-accent/30 border border-editorial-text/10 p-6 text-[11px] font-light leading-relaxed focus:outline-none focus:border-editorial-text resize-none" placeholder="We are selecting the next premium weave hoodie graphic. Decide the community standard." />
+                </div>
+                <div className="space-y-6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Options</p>
+                  <div className="space-y-4">
+                    {newPoll.options?.map((opt, idx) => (
+                      <div key={idx} className="grid grid-cols-2 gap-4">
+                        <input 
+                          required 
+                          type="text" 
+                          placeholder={`Option ${idx + 1} Label`} 
+                          value={opt.label} 
+                          onChange={e => {
+                            const copy = [...(newPoll.options || [])];
+                            copy[idx].label = e.target.value;
+                            setNewPoll({...newPoll, options: copy});
+                          }} 
+                          className="w-full bg-transparent border-b border-editorial-text/20 py-2 text-xs font-bold focus:outline-none"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Option Image URL (Optional)" 
+                          value={opt.image || ''} 
+                          onChange={e => {
+                            const copy = [...(newPoll.options || [])];
+                            copy[idx].image = e.target.value;
+                            setNewPoll({...newPoll, options: copy});
+                          }} 
+                          className="w-full bg-transparent border-b border-editorial-text/20 py-2 text-xs focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const copy = [...(newPoll.options || [])];
+                      copy.push({ id: (copy.length + 1).toString(), label: '', votes: 0 });
+                      setNewPoll({...newPoll, options: copy});
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider underline opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    + Add Option
+                  </button>
+                </div>
+                <button type="submit" className="w-full bg-editorial-text text-white py-8 text-[11px] font-bold uppercase tracking-[0.5em] hover:bg-gray-800 transition-all shadow-2xl">Broadcast Campaign</button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isAddingChallenge && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-editorial-text/95 backdrop-blur-sm" onClick={() => setIsAddingChallenge(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-2xl bg-white p-16 shadow-2xl">
+              <div className="flex justify-between items-start mb-16">
+                <div>
+                  <span className="text-[10px] uppercase tracking-[0.5em] font-bold opacity-30">Governance_Encoder</span>
+                  <h2 className="text-5xl font-serif mt-4 italic tracking-tighter">New Challenge</h2>
+                </div>
+                <button onClick={() => setIsAddingChallenge(false)} className="p-3 hover:bg-editorial-accent transition-colors"><X size={24} /></button>
+              </div>
+              <form onSubmit={handleCreateChallenge} className="space-y-12">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Challenge Title</label>
+                  <input required type="text" value={newChallenge.title} onChange={e => setNewChallenge({...newChallenge, title: e.target.value})} className="w-full bg-transparent border-b border-editorial-text/20 py-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-editorial-text" placeholder="Minimalist Cyberpunk Graphic" />
+                </div>
+                <div className="grid grid-cols-2 gap-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Reward / Incentive</label>
+                    <input required type="text" value={newChallenge.reward} onChange={e => setNewChallenge({...newChallenge, reward: e.target.value})} className="w-full bg-transparent border-b border-editorial-text/20 py-4 text-xs font-bold uppercase tracking-widest focus:outline-none" placeholder="100 ZYRU Points // Custom Label" />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Thumbnail Image URL</label>
+                    <input type="text" value={newChallenge.thumbnail} onChange={e => setNewChallenge({...newChallenge, thumbnail: e.target.value})} className="w-full bg-transparent border-b border-editorial-text/20 py-4 text-xs focus:outline-none" placeholder="https://..." />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Narrative (Description)</label>
+                  <textarea required value={newChallenge.description} onChange={e => setNewChallenge({...newChallenge, description: e.target.value})} className="w-full h-32 bg-editorial-accent/30 border border-editorial-text/10 p-6 text-[11px] font-light leading-relaxed focus:outline-none focus:border-editorial-text resize-none" placeholder="Submit your best artwork vector fitting a cyberpunk motif. Winner takes the drop." />
+                </div>
+                <button type="submit" className="w-full bg-editorial-text text-white py-8 text-[11px] font-bold uppercase tracking-[0.5em] hover:bg-gray-800 transition-all shadow-2xl">Launch Challenge</button>
               </form>
             </motion.div>
           </div>

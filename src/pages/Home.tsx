@@ -25,11 +25,22 @@ export function Home() {
     }
     loadData();
 
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + 12);
+    targetDate.setHours(12, 0, 0, 0);
+
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev.secs > 0) return { ...prev, secs: prev.secs - 1 };
-        return { ...prev, secs: 59, mins: prev.mins - 1 }; // Simple mock countdown logic
-      });
+      const difference = targetDate.getTime() - Date.now();
+      if (difference <= 0) {
+        setCountdown({ days: 0, hours: 0, mins: 0, secs: 0 });
+        clearInterval(timer);
+        return;
+      }
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+      const mins = Math.floor((difference / 1000 / 60) % 60);
+      const secs = Math.floor((difference / 1000) % 60);
+      setCountdown({ days, hours, mins, secs });
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -74,16 +85,29 @@ export function Home() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-[320px] h-[450px] bg-editorial-muted shadow-2xl relative flex flex-col items-center pt-24 border border-editorial-text/5"
+            className="w-[320px] h-[450px] bg-editorial-muted shadow-2xl relative flex flex-col items-center justify-center border border-editorial-text/5 overflow-hidden group"
           >
-            <div className="w-40 h-40 border-2 border-dashed border-editorial-text/10 flex items-center justify-center text-[9px] font-bold uppercase tracking-[0.3em] text-editorial-text/20 text-center px-4 leading-relaxed">
-              [ MOCK_PREVIEW_<br/>DESIGN_REQUIRED ]
+            {featuredProducts[0]?.images?.[0] ? (
+              <img 
+                src={featuredProducts[0].images[0]} 
+                alt="ZYRU Signature Piece" 
+                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-[1500ms]"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-40 h-40 border-2 border-dashed border-editorial-text/10 flex items-center justify-center text-[9px] font-bold uppercase tracking-[0.3em] text-editorial-text/40 text-center px-4 leading-relaxed font-mono">
+                ZYRU™<br/>Aesthetic<br/>Preview
+              </div>
+            )}
+            <div className="absolute bottom-12 left-10 bg-white/90 backdrop-blur-sm p-4 border border-editorial-text/5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.4em] mb-1">
+                {featuredProducts[0]?.name || "Signature Drop"}
+              </p>
+              <p className="text-[9px] opacity-60 uppercase tracking-[0.4em] font-mono">
+                Batch: {featuredProducts[0]?.id?.slice(0,8).toUpperCase() || "2026-VISION"}
+              </p>
             </div>
-            <div className="absolute bottom-12 left-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] mb-2">Signature Hoodie</p>
-              <p className="text-[9px] opacity-40 uppercase tracking-[0.4em] font-mono">Batch: 2026-XQ-01</p>
-            </div>
-            <div className="absolute top-6 right-6 text-[10px] border border-editorial-text px-3 py-1 italic font-serif">
+            <div className="absolute top-6 right-6 text-[10px] bg-white border border-editorial-text px-3 py-1 italic font-serif">
               Studio Concept
             </div>
           </motion.div>
