@@ -261,9 +261,9 @@ export function DesignStudio() {
   return (
     <div className="h-screen bg-editorial-bg flex flex-col md:flex-row pt-16 overflow-hidden">
       {/* Sidebar Controls */}
-      <div className="w-full md:w-[450px] bg-editorial-bg border-r border-editorial-text flex flex-col order-2 md:order-1 h-[50vh] md:h-full">
+      <div className="w-full md:w-[450px] bg-editorial-bg border-r border-editorial-text flex flex-col order-2 md:order-1 flex-1 md:flex-none md:h-full">
         {/* Tabs */}
-        <div className="flex border-b border-editorial-text overflow-x-auto no-scrollbar">
+        <div className="flex border-b border-editorial-text overflow-x-auto no-scrollbar shrink-0">
           {(['product', 'design', 'text', 'upload', 'ai'] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -285,7 +285,7 @@ export function DesignStudio() {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-grow overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-grow overflow-y-auto p-8 custom-scrollbar min-h-0">
           <AnimatePresence mode="wait">
             {activeTab === 'product' && (
               <motion.div key="product" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-12">
@@ -744,7 +744,7 @@ export function DesignStudio() {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-8 border-t border-editorial-text bg-editorial-bg mt-auto">
+        <div className="p-8 border-t border-editorial-text bg-editorial-bg mt-auto shrink-0">
           <div className="flex justify-between items-end mb-8">
             <div className="group relative">
               <p className="text-[9px] font-bold text-editorial-text/40 uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
@@ -807,7 +807,7 @@ export function DesignStudio() {
       </div>
 
       {/* Preview Area */}
-      <div className="flex-grow flex items-center justify-center p-6 md:p-12 bg-editorial-accent relative overflow-hidden order-1 md:order-2 h-[50vh] md:h-full min-h-[300px]">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 bg-editorial-accent relative overflow-hidden order-1 md:order-2 min-h-[300px]">
         <div className="absolute top-10 left-10 label-text opacity-30 flex items-center gap-4">
           <span>Studio Mode // ZR-MOCK-01</span>
           <span className="w-10 h-[1px] bg-editorial-text/20" />
