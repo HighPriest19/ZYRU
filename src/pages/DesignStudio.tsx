@@ -259,9 +259,9 @@ export function DesignStudio() {
   };
 
   return (
-    <div className="min-h-screen bg-editorial-bg flex flex-col md:flex-row pt-16 overflow-x-hidden">
+    <div className="h-screen bg-editorial-bg flex flex-col md:flex-row pt-16 overflow-hidden">
       {/* Sidebar Controls */}
-      <div className="w-full md:w-[450px] bg-editorial-bg border-r border-editorial-text flex flex-col order-2 md:order-1 h-auto md:h-[calc(100vh-64px)]">
+      <div className="w-full md:w-[450px] bg-editorial-bg border-r border-editorial-text flex flex-col order-2 md:order-1 h-[50vh] md:h-full">
         {/* Tabs */}
         <div className="flex border-b border-editorial-text overflow-x-auto no-scrollbar">
           {(['product', 'design', 'text', 'upload', 'ai'] as Tab[]).map((tab) => (
@@ -807,7 +807,7 @@ export function DesignStudio() {
       </div>
 
       {/* Preview Area */}
-      <div className="flex-grow flex items-center justify-center p-6 md:p-12 bg-editorial-accent relative overflow-hidden order-1 md:order-2 h-[45vh] md:h-auto min-h-[300px]">
+      <div className="flex-grow flex items-center justify-center p-6 md:p-12 bg-editorial-accent relative overflow-hidden order-1 md:order-2 h-[50vh] md:h-full min-h-[300px]">
         <div className="absolute top-10 left-10 label-text opacity-30 flex items-center gap-4">
           <span>Studio Mode // ZR-MOCK-01</span>
           <span className="w-10 h-[1px] bg-editorial-text/20" />

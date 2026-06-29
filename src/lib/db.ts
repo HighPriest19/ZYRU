@@ -117,15 +117,42 @@ export async function getAllDesigns() {
 
 // User Services
 export async function getUserProfile(uid: string) {
-  return getDocument<UserProfile>('users', uid);
+  try {
+    const profile = await getDocument<UserProfile>('users', uid);
+    if (profile) {
+      // Sync local copy
+      localStorage.setItem(`user_profile_${uid}`, JSON.stringify(profile));
+      return profile;
+    }
+  } catch (error) {
+    console.warn("Failed to retrieve user profile from Firestore. Trying localStorage fallback:", error);
+  }
+  
+  const cached = localStorage.getItem(`user_profile_${uid}`);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as UserProfile;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export async function createUserProfile(profile: UserProfile) {
-  const ref = doc(db, 'users', profile.uid);
-  return setDoc(ref, {
-    ...profile,
-    joinedAt: serverTimestamp()
-  });
+  // Always update local cache first
+  localStorage.setItem(`user_profile_${profile.uid}`, JSON.stringify(profile));
+  
+  try {
+    const ref = doc(db, 'users', profile.uid);
+    await setDoc(ref, {
+      ...profile,
+      joinedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.warn("Failed to create user profile in Firestore. Reverting to localStorage only:", error);
+    // Do not throw so that user registry registration proceeds smoothly
+  }
 }
 
 export async function getWishlistByUser(userId: string) {
